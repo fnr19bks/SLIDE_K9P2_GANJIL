@@ -1,0 +1,948 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Graf Berbobot dan Rute Terpendek — Informatika Kelas IX</title>
+<style>
+:root{
+  --bg:#08172A; --bg2:#0F2A45;
+  --card:rgba(255,255,255,.07); --line:rgba(52,211,153,.28);
+  --accent:#34D399; --accent2:#FB923C; --accent3:#60A5FA;
+  --pink:#F472B6; --text:#EAF3FC; --muted:#9FB8D4;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;width:100%}
+body{
+  font-family:"Segoe UI",Inter,system-ui,-apple-system,"Helvetica Neue",sans-serif;
+  background:
+    radial-gradient(1200px 700px at 15% 10%, #12395e 0%, transparent 60%),
+    radial-gradient(900px 600px at 85% 90%, #1a2f4a 0%, transparent 65%),
+    linear-gradient(160deg,#08172A 0%, #0F2A45 55%, #08172A 100%);
+  color:var(--text); overflow:hidden; display:grid; place-items:center;
+  -webkit-font-smoothing:antialiased;
+}
+#stage{
+  width:1280px;height:720px;position:relative;transform-origin:center center;
+  perspective:1800px;border-radius:20px;overflow:hidden;
+  box-shadow:0 40px 100px rgba(0,0,0,.7), 0 0 0 1px rgba(52,211,153,.18), 0 0 120px rgba(52,211,153,.08);
+}
+
+/* ============ SLIDE ============ */
+.slide{
+  position:absolute; inset:0; padding:40px 56px 78px; display:flex; flex-direction:column;
+  opacity:0; visibility:hidden; pointer-events:none;
+  transform:translateX(calc(72px * var(--d,1))) rotateY(calc(11deg * var(--d,1))) scale(.94);
+  transition:opacity .55s ease, transform .7s cubic-bezier(.2,.85,.25,1), visibility .55s;
+  background:
+    radial-gradient(900px 520px at 10% -12%, rgba(52,211,153,.17), transparent 62%),
+    radial-gradient(820px 520px at 98% 112%, rgba(251,146,60,.15), transparent 62%),
+    radial-gradient(700px 420px at 88% -8%, rgba(96,165,250,.12), transparent 60%),
+    linear-gradient(152deg,#08172A 0%, #0F2A45 58%, #08172A 100%);
+}
+.slide.active{opacity:1;visibility:visible;pointer-events:auto;transform:none}
+.slide::after{
+  content:"";position:absolute;inset:0;pointer-events:none;opacity:.6;
+  background-image:linear-gradient(rgba(52,211,153,.055) 1px,transparent 1px),
+                   linear-gradient(90deg,rgba(52,211,153,.055) 1px,transparent 1px);
+  background-size:64px 64px; animation:gridmove 26s linear infinite;
+}
+@keyframes gridmove{from{background-position:0 0,0 0}to{background-position:64px 64px,64px 64px}}
+.slide > *{position:relative;z-index:2}
+
+/* ============ REVEAL ============ */
+.f{opacity:0;transform:translateY(24px) scale(.985);transition:opacity .5s ease,transform .6s cubic-bezier(.2,.85,.25,1)}
+.f.show{opacity:1;transform:none}
+
+/* ============ TIPOGRAFI ============ */
+.eyebrow{font-size:14px;letter-spacing:.24em;text-transform:uppercase;color:var(--accent);font-weight:800;display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.eyebrow::before{content:"";width:34px;height:3px;border-radius:3px;background:linear-gradient(90deg,var(--accent),var(--accent3))}
+h1.title{font-size:52px;line-height:1.06;font-weight:900;letter-spacing:-1px}
+h2.title{font-size:38px;line-height:1.14;font-weight:900;letter-spacing:-.5px}
+h3{font-size:20px;font-weight:800;color:#fff;margin-bottom:6px}
+.sub{font-size:19px;color:var(--muted);margin-top:8px;letter-spacing:.02em}
+.lead{font-size:22px;line-height:1.45;color:#D9E8F8}
+.hl{color:var(--accent);font-weight:800}
+.hl2{color:var(--accent2);font-weight:800}
+.hl3{color:var(--accent3);font-weight:800}
+.grad{background:linear-gradient(96deg,#34D399 0%,#60A5FA 52%,#FB923C 100%);-webkit-background-clip:text;background-clip:text;color:transparent}
+.tiny{font-size:15px;color:var(--muted)}
+
+/* ============ KOMPONEN ============ */
+.badge{display:inline-flex;align-items:center;gap:9px;padding:8px 16px;border-radius:999px;background:rgba(52,211,153,.13);border:1px solid var(--line);font-size:15px;font-weight:700;color:#D3F7E8}
+.chip{display:inline-flex;align-items:center;gap:7px;padding:7px 15px;border-radius:999px;font-size:15px;font-weight:700;
+  background:rgba(52,211,153,.14);border:1px solid rgba(52,211,153,.38);color:#BEF3DD}
+.chip.orange{background:rgba(251,146,60,.14);border-color:rgba(251,146,60,.42);color:#FDD9B6}
+.chip.blue{background:rgba(96,165,250,.14);border-color:rgba(96,165,250,.42);color:#C7DDFF}
+.chip.pink{background:rgba(244,114,182,.14);border-color:rgba(244,114,182,.42);color:#FBD3E8}
+.chips{display:flex;flex-wrap:wrap;gap:9px}
+.time{background:rgba(255,255,255,.07);border-color:rgba(255,255,255,.16);color:#CFE2F5}
+
+ul.bullets{list-style:none;display:flex;flex-direction:column;gap:11px}
+ul.bullets li{font-size:22px;line-height:1.34;padding-left:36px;position:relative;color:#E4EFFA}
+ul.bullets li::before{content:"";position:absolute;left:8px;top:11px;width:11px;height:11px;border-radius:50%;
+  background:var(--accent);box-shadow:0 0 0 4px rgba(52,211,153,.18)}
+ul.bullets.gold li::before{background:var(--accent2);box-shadow:0 0 0 4px rgba(251,146,60,.18)}
+ul.bullets.blue li::before{background:var(--accent3);box-shadow:0 0 0 4px rgba(96,165,250,.18)}
+
+ol.steps{list-style:none;counter-reset:s;display:flex;flex-direction:column;gap:9px}
+ol.steps li{counter-increment:s;position:relative;padding-left:52px;font-size:20px;line-height:1.35;color:#E4EFFA;min-height:36px;display:flex;align-items:center}
+ol.steps li::before{content:counter(s);position:absolute;left:0;top:50%;transform:translateY(-50%);width:34px;height:34px;border-radius:50%;
+  display:grid;place-items:center;font-weight:900;font-size:16px;color:#04231A;
+  background:linear-gradient(140deg,#34D399,#60A5FA);box-shadow:0 4px 14px rgba(52,211,153,.35)}
+
+.grid{display:grid;gap:16px}
+.g2{grid-template-columns:1fr 1fr}
+.g3{grid-template-columns:repeat(3,1fr)}
+.g4{grid-template-columns:repeat(4,1fr)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px 20px;backdrop-filter:blur(7px);position:relative;overflow:hidden}
+.card::before{content:"";position:absolute;inset:0 auto auto 0;width:100%;height:3px;background:linear-gradient(90deg,var(--accent),transparent)}
+.card.gold{border-color:rgba(251,146,60,.42)}
+.card.gold::before{background:linear-gradient(90deg,var(--accent2),transparent)}
+.card.blue{border-color:rgba(96,165,250,.42)}
+.card.blue::before{background:linear-gradient(90deg,var(--accent3),transparent)}
+.card.pink{border-color:rgba(244,114,182,.42)}
+.card.pink::before{background:linear-gradient(90deg,var(--pink),transparent)}
+.card p{font-size:17px;line-height:1.4;color:#CFE1F3}
+.card .ico{font-size:26px;display:block;margin-bottom:6px}
+
+.code{font-family:ui-monospace,"Cascadia Code",Consolas,monospace;background:rgba(3,12,24,.75);border-left:4px solid var(--accent);
+  border-radius:10px;padding:14px 18px;font-size:18px;line-height:1.62;color:#D7F5E7;white-space:pre-wrap;overflow:hidden}
+.code.sm{font-size:15px;line-height:1.55}
+.code .k{color:#FB923C}
+.code .c{color:#7FA0C0}
+.code .s{color:#F472B6}
+
+.flow{display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap}
+.node{padding:11px 18px;border-radius:12px;background:rgba(52,211,153,.14);border:2px solid rgba(52,211,153,.5);
+  font-size:17px;font-weight:800;color:#E9FBF3;text-align:center}
+.node.oval{border-radius:999px;background:rgba(96,165,250,.16);border-color:rgba(96,165,250,.55)}
+.node.diamond{clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%);padding:26px 34px;font-size:15px;
+  background:linear-gradient(150deg,rgba(251,146,60,.5),rgba(251,146,60,.18));border:none;color:#FFEFE0}
+.arrow{color:var(--accent);font-size:22px;font-weight:900}
+.branchLabel{font-size:13px;color:var(--accent2);font-weight:800;letter-spacing:.05em}
+
+table{width:100%;border-collapse:collapse;font-size:17px;border-radius:12px;overflow:hidden}
+th{background:rgba(52,211,153,.22);color:#EAFFF7;text-align:left;padding:10px 14px;font-size:14px;text-transform:uppercase;letter-spacing:.08em}
+td{padding:9px 14px;border-top:1px solid rgba(255,255,255,.08);color:#DBE9F7}
+tbody tr:nth-child(odd){background:rgba(255,255,255,.035)}
+tbody tr:nth-child(even){background:rgba(255,255,255,.075)}
+
+.bubble{position:relative;background:linear-gradient(140deg,rgba(96,165,250,.22),rgba(96,165,250,.07));
+  border:1px solid rgba(96,165,250,.45);border-radius:20px;padding:18px 24px;font-size:23px;line-height:1.38;color:#EAF3FC}
+.bubble::after{content:"";position:absolute;left:46px;bottom:-13px;width:24px;height:24px;background:#13314f;
+  border-right:1px solid rgba(96,165,250,.45);border-bottom:1px solid rgba(96,165,250,.45);transform:rotate(45deg)}
+
+.timeline{display:flex;align-items:stretch;gap:0}
+.tl{flex:1;position:relative;padding:16px 16px 14px;border-radius:14px;background:var(--card);border:1px solid var(--line);margin-right:22px}
+.tl:last-child{margin-right:0}
+.tl::after{content:"➜";position:absolute;right:-20px;top:50%;transform:translateY(-50%);color:var(--accent);font-size:16px}
+.tl:last-child::after{display:none}
+.tl b{display:block;font-size:17px;color:#fff;margin-bottom:4px}
+.tl span{font-size:15px;color:#C7DBEF;line-height:1.35;display:block}
+
+/* Peta SVG */
+svg.map{width:100%;height:auto;max-height:330px}
+svg.map .nd circle{fill:#1B4A78;stroke:#60A5FA;stroke-width:3}
+svg.map .nd text{fill:#fff;font-size:19px;font-weight:800;text-anchor:middle;dominant-baseline:central}
+svg.map .lbl text{fill:#B9D2EA;font-size:13px;font-weight:700;text-anchor:middle;dominant-baseline:central}
+
+/* Header slide */
+.shead{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;margin-bottom:16px}
+.body{flex:1;display:flex;flex-direction:column;justify-content:center;gap:16px;min-height:0}
+
+/* Cover */
+.cover .card{padding:20px 22px}
+.cover dl{display:grid;grid-template-columns:auto 1fr;gap:8px 14px;font-size:16px}
+.cover dt{color:var(--muted);font-weight:700}
+.cover dd{color:#E7F2FD;font-weight:600}
+
+/* HUD */
+#hud{position:absolute;left:0;right:0;bottom:8px;height:56px;display:flex;align-items:center;justify-content:space-between;
+  padding:0 24px;z-index:50;pointer-events:none}
+.hudleft{display:flex;align-items:center;gap:14px}
+#counter{font-size:16px;font-weight:900;color:#0A2036;background:linear-gradient(140deg,#34D399,#60A5FA);
+  padding:6px 14px;border-radius:999px;letter-spacing:.04em}
+.hudtitle{font-size:14px;color:var(--muted);letter-spacing:.06em}
+.hudbtns{display:flex;gap:9px;pointer-events:auto}
+.btn{width:44px;height:40px;border-radius:11px;border:1px solid rgba(52,211,153,.4);background:rgba(255,255,255,.08);
+  color:#EAF3FC;font-size:17px;font-weight:800;cursor:pointer;transition:.2s;display:grid;place-items:center}
+.btn:hover{background:rgba(52,211,153,.24);transform:translateY(-2px);border-color:var(--accent)}
+.btn:active{transform:translateY(0) scale(.95)}
+#bar{position:absolute;left:0;right:0;bottom:0;height:6px;background:rgba(255,255,255,.08);z-index:60}
+#bar > i{display:block;height:100%;width:6%;background:linear-gradient(90deg,#34D399,#60A5FA,#FB923C);
+  box-shadow:0 0 16px rgba(52,211,153,.75);transition:width .45s cubic-bezier(.2,.85,.25,1)}
+#hint{position:absolute;left:50%;bottom:70px;transform:translateX(-50%);z-index:55;
+  padding:9px 22px;border-radius:999px;background:rgba(52,211,153,.16);border:1px solid var(--line);
+  font-size:15px;font-weight:700;color:#BEF3DD;animation:pulse 2s ease-in-out infinite;transition:opacity .5s}
+#hint.gone{opacity:0;pointer-events:none}
+@keyframes pulse{0%,100%{transform:translateX(-50%) translateY(0);opacity:.85}50%{transform:translateX(-50%) translateY(-6px);opacity:1}}
+</style>
+</head>
+<body>
+<div id="stage">
+
+  <!-- ============ 1. COVER ============ -->
+  <section class="slide active cover">
+    <!-- GURU: Sambut murid, nyalakan proyektor, cek kesiapan. Tanyakan: "Siapa yang pernah memakai aplikasi peta? Bagaimana peta tahu rute tercepat?" -->
+    <div class="grid g2" style="flex:1;align-items:center;gap:34px">
+      <div>
+        <div class="eyebrow f">Modul Ajar Informatika · Kurikulum Merdeka</div>
+        <h1 class="title grad">Graf Berbobot &amp;<br>Rute Terpendek</h1>
+        <p class="lead f" style="margin-top:12px">Peta berbobot · spreadsheet / board</p>
+        <div class="f chips" style="margin-top:16px">
+          <span class="chip">💻 Informatika</span>
+          <span class="chip blue">🎓 Kelas IX / Fase D</span>
+          <span class="chip orange">🧠 Berpikir Komputasional</span>
+        </div>
+        <div class="f chips" style="margin-top:10px">
+          <span class="chip pink">🤝 PBL + Simulasi</span>
+          <span class="chip">🌱 Mendalam · UDL · CT</span>
+          <span class="chip time">⏱ 2 × 40 menit</span>
+        </div>
+        <div class="f" style="margin-top:20px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+          <span class="badge">🏫 SMP Negeri 19 Kota Bekasi</span>
+          <span class="badge">👥 Tim MGMP Informatika</span>
+        </div>
+      </div>
+      <div class="card f">
+        <h3 style="margin-bottom:12px">Identitas Pembelajaran</h3>
+        <dl>
+          <dt>Mata Pelajaran</dt><dd>Informatika</dd>
+          <dt>Kelas / Fase</dt><dd>IX / Fase D</dd>
+          <dt>Elemen</dt><dd>Berpikir Komputasional</dd>
+          <dt>Model</dt><dd>Problem Based Learning + Simulasi</dd>
+          <dt>Topik</dt><dd>Graf Berbobot dan Rute Terpendek</dd>
+          <dt>Subtopik</dt><dd>Peta berbobot, spreadsheet/board</dd>
+          <dt>Pendekatan</dt><dd>Pembelajaran Mendalam + UDL + CT</dd>
+          <dt>Tujuan</dt><dd>Memilih rute &amp; menjelaskan alasannya</dd>
+        </dl>
+      </div>
+    </div>
+    <div class="f" style="margin-top:6px;font-size:15px;color:var(--muted);letter-spacing:.05em">
+      Klik di mana saja atau tekan → untuk memulai presentasi
+    </div>
+  </section>
+
+  <!-- ============ 2. TUJUAN ============ -->
+  <section class="slide">
+    <!-- GURU: Bacakan tujuan. Tekankan bahwa semua keputusan rute harus punya bukti hitungan. -->
+    <div class="shead">
+      <div>
+        <div class="eyebrow">Arah Pembelajaran</div>
+        <h2 class="title">Tujuan <span class="grad">Pembelajaran</span></h2>
+      </div>
+      <span class="chip time f">⏱ 3 menit</span>
+    </div>
+    <div class="body">
+      <ul class="bullets">
+        <li class="f">Mengenali <span class="hl">simpul</span>, <span class="hl3">sisi</span>, dan <span class="hl2">bobot</span> pada peta.</li>
+        <li class="f">Menghitung total bobot beberapa alternatif rute.</li>
+        <li class="f">Memilih rute terbaik sesuai kriteria: cepat, murah, aman.</li>
+        <li class="f">Menjelaskan alasan pilihan dengan <span class="hl">bukti perhitungan</span>.</li>
+      </ul>
+      <div class="grid g3" style="margin-top:6px">
+        <div class="card blue f"><span class="ico">🧩</span><h3>Dekomposisi</h3><p>Pecah masalah rute menjadi bagian kecil.</p></div>
+        <div class="card f"><span class="ico">🔍</span><h3>Abstraksi</h3><p>Ambil informasi penting: simpul dan bobot.</p></div>
+        <div class="card gold f"><span class="ico">⚙️</span><h3>Algoritma</h3><p>Susun langkah membandingkan rute.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 3. APERSEPSI ============ -->
+  <section class="slide">
+    <!-- GURU: Ajukan pertanyaan pemantik. Minta 3 murid menjawab singkat. Tidak ada jawaban salah. -->
+    <div class="shead">
+      <div>
+        <div class="eyebrow">Apersepsi</div>
+        <h2 class="title">Pertanyaan <span class="grad">Pemantik</span></h2>
+      </div>
+      <span class="chip time f">⏱ 5 menit</span>
+    </div>
+    <div class="body">
+      <div class="bubble f">💬 “Pernahkah kamu memilih jalan memutar agar tidak macet?”</div>
+      <div class="grid g3" style="margin-top:14px">
+        <div class="card f"><span class="ico">⚡</span><h3>Cepat?</h3><p>Waktu paling singkat sampai tujuan.</p></div>
+        <div class="card gold f"><span class="ico">💰</span><h3>Murah?</h3><p>Biaya paling sedikit yang dikeluarkan.</p></div>
+        <div class="card blue f"><span class="ico">🛡️</span><h3>Aman?</h3><p>Jalan paling aman dan nyaman dilalui.</p></div>
+      </div>
+      <p class="lead f" style="margin-top:12px">Apa yang terjadi jika jalur terpendek justru <span class="hl2">macet parah</span>? Apakah tetap terbaik?</p>
+      <div class="f chips"><span class="chip">🤔 Pikirkan 30 detik</span><span class="chip blue">🗣 Diskusi berpasangan</span></div>
+    </div>
+  </section>
+
+  <!-- ============ 4. DEFINISI ============ -->
+  <section class="slide">
+    <!-- GURU: Gunakan analogi papan tulis: titik = kota, garis = jalan, angka = ongkos/waktu. -->
+    <div class="shead">
+      <div>
+        <div class="eyebrow">Konsep Inti</div>
+        <h2 class="title">Apa itu <span class="grad">Graf Berbobot?</span></h2>
+      </div>
+      <span class="chip time f">⏱ 5 menit</span>
+    </div>
+    <div class="body">
+      <div class="grid g2">
+        <div class="card blue f">
+          <span class="ico">🕸️</span>
+          <h3>Graf = Titik + Garis</h3>
+          <p>Bayangkan peta kota: titik-titik tempat (rumah, pasar) dihubungkan garis jalan.</p>
+        </div>
+        <div class="card gold f">
+          <span class="ico">⚖️</span>
+          <h3>Berbobot = Punya Nilai</h3>
+          <p>Setiap garis diberi angka: menit, kilometer, atau rupiah. Angka itu disebut <b>bobot</b>.</p>
+        </div>
+      </div>
+      <div class="code f">Analogi: <span class="s">"graf"</span> itu seperti <span class="k">peta jalan</span>,
+dan <span class="s">"bobot"</span> itu seperti <span class="k">ongkos ojek</span> di tiap jalan.</div>
+      <p class="lead f">Tanpa bobot, kita hanya tahu <span class="hl3">ada jalan</span>. Dengan bobot, kita tahu <span class="hl">jalan mana yang lebih baik</span>.</p>
+    </div>
+  </section>
+
+  <!-- ============ 5. CONTOH NYATA ============ -->
+  <section class="slide">
+    <!-- GURU: Minta murid menyebut contoh lain di lingkungan sekolah. Tulis di papan. -->
+    <div class="shead">
+      <div>
+        <div class="eyebrow">Konteks Nyata</div>
+        <h2 class="title">Di Sekitar <span class="grad">Kita</span></h2>
+      </div>
+      <span class="chip time f">⏱ 4 menit</span>
+    </div>
+    <div class="body">
+      <div class="grid g4">
+        <div class="card f"><span class="ico">🛵</span><h3>Ojek Online</h3><p>Aplikasi memilih rute dengan waktu tersingkat.</p></div>
+        <div class="card gold f"><span class="ico">📦</span><h3>Kurir Paket</h3><p>Paket sampai cepat dengan biaya hemat.</p></div>
+        <div class="card blue f"><span class="ico">🏫</span><h3>Jalan ke Sekolah</h3><p>Pilih jalur yang tidak macet pagi hari.</p></div>
+        <div class="card pink f"><span class="ico">🚨</span><h3>Jalur Evakuasi</h3><p>Rute tercepat saat keadaan darurat.</p></div>
+      </div>
+      <p class="lead f">Semua contoh itu memakai ide yang sama: <span class="hl">membandingkan total bobot</span> beberapa rute.</p>
+      <div class="f chips">
+        <span class="chip">🛵 Waktu</span><span class="chip orange">💵 Biaya</span><span class="chip blue">📏 Jarak</span><span class="chip pink">🛡️ Keamanan</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 6. TIGA UNSUR ============ -->
+  <section class="slide">
+    <!-- GURU: Tunjuk peta di layar, minta murid menyebut simpul dan sisi secara bergantian. -->
+    <div class="shead">
+      <div>
+        <div class="eyebrow">Materi Inti · Bagian 1</div>
+        <h2 class="title">Tiga Unsur <span class="grad">Graf</span></h2>
+      </div>
+      <span class="chip time f">⏱ 6 menit</span>
+    </div>
+    <div class="body">
+      <div class="grid g3">
+        <div class="card blue f">
+          <span class="ico">🔵</span><h3>Simpul (Vertex)</h3>
+          <p>Titik atau tempat. Contoh: Rumah Kirana, Sekolah.</p>
+        </div>
+        <div class="card f">
+          <span class="ico">➖</span><h3>Sisi (Edge)</h3>
+          <p>Jalan penghubung dua simpul. Contoh: Jalan Merdeka.</p>
+        </div>
+        <div class="card gold f">
+          <span class="ico">🔢</span><h3>Bobot (Weight)</h3>
+          <p>Nilai pada sisi. Contoh: 5 menit atau Rp2.000.</p>
+        </div>
+      </div>
+      <div class="code f"><span class="c"># Contoh penulisan sederhana</span>
+A —(5 menit)— B     <span class="c"># A dan B = simpul, 5 menit = bobot</span></div>
+      <p class="lead f">Ingat singkat: <span class="hl3">titik</span> — <span class="hl">garis</span> — <span class="hl2">angka</span>.</p>
+    </div>
+  </section>
+
+  <!-- ============ 7. SIMPUL & SISI ============ -->
+  <section class="slide">
+    <!-- GURU: Gambar 2 simpul di papan, minta murid memberi nama dan bobot sendiri. -->
+    <div class="shead">
+      <div>
+        <div class="eyebrow">Materi Inti · Bagian 2</div>
+        <h2 class="title">Mengenali <span class="grad">Simpul &amp; Sisi</span></h2>
+      </div>
+      <span class="chip time f">⏱ 5 menit</span>
+    </div>
+    <div class="body">
+      <div class="code f">A = Toko          B = Simpang Pasar
+C = Jalan Merdeka D = Sekolah
+E = Taman Kota    F = Rumah Bu Sari
+
+Sisi: A–B, A–C, B–C, B–D, C–D, C–E, D–E, D–F, E–F</div>
+      <div class="f chips">
+        <span class="chip blue">6 simpul</span>
+        <span class="chip">9 sisi</span>
+        <span class="chip orange">bobot ganda: waktu &amp; biaya</span>
+      </div>
+      <p class="lead f">Nama simpul boleh apa saja, yang penting <span class="hl">konsisten</span> dan mudah dibaca.</p>
+    </div>
+  </section>
+
+  <!-- ============ 8. BOBOT ============ -->
+  <section class="slide">
+    <!-- GURU: Tekankan bahwa satu sisi boleh punya dua bobot sekaligus (waktu dan biaya). -->
+    <div class="shead">
+      <div>
+        <div class="eyebrow">Materi Inti · Bagian 3</div>
+        <h2 class="title">Jenis-jenis <span class="grad">Bobot</span></h2>
+      </div>
+      <span class="chip time f">⏱ 6 menit</span>
+    </div>
+    <div class="body">
+      <table class="f">
+        <thead><tr><th>Jenis Bobot</th><th>Satuan</th><th>Contoh</th><th>Kapan Dipakai</th></tr></thead>
+        <tbody>
+          <tr><td>Waktu tempuh</td><td>menit</td><td>5 mnt</td><td>Saat kita dikejar waktu</td></tr>
+          <tr><td>Jarak</td><td>kilometer</td><td>2 km</td><td>Saat menghemat tenaga</td></tr>
+          <tr><td>Biaya</td><td>rupiah</td><td>Rp2.000</td><td>Saat uang terbatas</td></tr>
+          <tr><td>Kemacetan</td><td>skala 1–5</td><td>4</td><td>Saat jam sibuk</td></tr>
+          <tr><td>Keamanan</td><td>skala 1–5</td><td>5</td><td>Saat malam atau hujan</td></tr>
+        </tbody>
+      </table>
+      <p class="lead f">Rute “terpendek” tidak selalu jarak. Bisa berarti <span class="hl">paling cepat</span>, <span class="hl2">paling murah</span>, atau <span class="hl3">paling aman</span>.</p>
+    </div>
+  </section>
+
+  <!-- ============ 9. RUTE & TOTAL BOBOT ============ -->
+  <section class="slide">
+    <!-- GURU: Hitung bersama di papan: A→B→D→F. Tanya totalnya sebelum menampilkan jawaban. -->
+    <div class="shead">
+      <div>
+        <div class="eyebrow">Materi Inti · Bagian 4</div>
+        <h2 class="title">Rute &amp; <span class="grad">Total Bobot</span></h2>
+      </div>
+      <span class="chip time f">⏱ 7 menit</span>
+    </div>
+    <div class="body">
+      <div class="grid g2">
+        <div class="card blue f"><span class="ico">🧭</span><h3>Rute</h3><p>Urutan simpul yang dilalui dari awal ke akhir. Contoh: <b>A → B → D → F</b></p></div>
+        <div class="card gold f"><span class="ico">➕</span><h3>Total Bobot</h3><p>Jumlahkan bobot tiap sisi yang dilalui. Hasilnya untuk membandingkan rute.</p></div>
+      </div>
+      <div class="code f"><span class="c"># Contoh Soal 1 — hitung total waktu</span>
+Rute : A → B → D → F
+A–B = 5 menit
+B–D = 6 menit
+D–F = 5 menit
+Total = 5 + 6 + 5 = <span class="k">16 menit</span></div>
+      <p class="lead f">Ini contoh <span class="hl">penjumlahan</span> sederhana, seperti menghitung uang jajan.</p>
+    </div>
+  </section>
+
+  <!-- ============ 10. LANGKAH LOGIKA ============ -->
+  <section class="slide">
+    <!-- GURU: Bacakan langkah satu per satu. Minta murid mengulang langkah 3 dan 4. -->
+    <div class="shead">
+      <div>
+        <div class="eyebrow">Algoritma</div>
+        <h2 class="title">Langkah <span class="grad">Menyelesaikan Rute</span></h2>
+      </div>
+      <span class="chip time f">⏱ 6 menit</span>
+    </div>
+    <div class="body">
+      <ol class="steps">
+        <li class="f">Tentukan titik awal dan titik akhir.</li>
+        <li class="f">Daftar minimal tiga jalur alternatif.</li>
+        <li class="f">Jumlahkan bobot setiap jalur.</li>
+        <li class="f">Bandingkan total bobot antarrute.</li>
+        <li class="f">Pilih rute terbaik sesuai kriteria.</li>
+        <li class="f">Jelaskan alasan memakai data perhitungan.</li>
+      </ol>
+      <div class="f chips">
+        <span class="chip">1️⃣ Tentukan</span><span class="chip blue">2️⃣ Daftar</span><span class="chip orange">3️⃣ Hitung</span>
+        <span class="chip">4️⃣ Bandingkan</span><span class="chip blue">5️⃣ Pilih</span><span class="chip orange">6️⃣ Jelaskan</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 11. TABEL PETA ============ -->
+  <section class="slide">
+    <!-- GURU: Tampilkan tabel bobot. Minta murid membaca satu baris dengan suara jelas. -->
+    <div class="shead">
+      <div>
+        <div class="eyebrow">Data Peta</div>
+        <h2 class="title">Tabel Bobot <span class="grad">Sisi</span></h2>
+      </div>
+      <span class="chip time f">⏱ 5 menit</span>
+    </div>
+    <div class="body">
+      <div class="grid g2" style="gap:22px;align-items:start">
+        <table class="f">
+          <thead><tr><th>Sisi</th><th>Waktu</th><th>Biaya</th></tr></thead>
+          <tbody>
+            <tr><td>A–B</td><td>5 mnt</td><td>Rp0</td></tr>
+            <tr><td>A–C</td><td>8 mnt</td><td>Rp2.000</td></tr>
+            <tr><td>B–C</td><td>3 mnt</td><td>Rp0</td></tr>
+            <tr><td>B–D</td><td>6 mnt</td><td>Rp1.000</td></tr>
+            <tr><td>C–D</td><td>4 mnt</td><td>Rp0</td></tr>
+          </tbody>
+        </table>
+        <table class="f">
+          <thead><tr><th>Sisi</th><th>Waktu</th><th>Biaya</th></tr></thead>
+          <tbody>
+            <tr><td>C–E</td><td>7 mnt</td><td>Rp2.000</td></tr>
+            <tr><td>D–E</td><td>2 mnt</td><td>Rp0</td></tr>
+            <tr><td>D–F</td><td>5 mnt</td><td>Rp1.000</td></tr>
+            <tr><td>E–F</td><td>4 mnt</td><td>Rp0</td></tr>
+            <tr><td colspan="3" style="color:var(--muted)">Titik awal: A · Titik akhir: F</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="lead f">Tabel ini sama seperti <span class="hl3">spreadsheet</span>. Kolom = informasi, baris = sisi jalan.</p>
+    </div>
+  </section>
+
+  <!-- ============ 12. FLOWCHART ============ -->
+  <section class="slide">
+    <!-- GURU: Gambarkan alur di papan juga. Tunjuk satu murid untuk menjelaskan tiap kotak. -->
+    <div class="shead">
+      <div>
+        <div class="eyebrow">Alur Berpikir</div>
+        <h2 class="title">Flowchart <span class="grad">Pemilihan Rute</span></h2>
+      </div>
+      <span class="chip time f">⏱ 6 menit</span>
+    </div>
+    <div class="body">
+      <div class="flow">
+        <div class="node oval f">Mulai</div>
+        <div class="arrow f">➜</div>
+        <div class="node f">Tentukan Awal &amp; Akhir</div>
+        <div class="arrow f">➜</div>
+        <div class="node f">Daftar 3 Jalur</div>
+        <div class="arrow f">➜</div>
+        <div class="node f">Jumlahkan Bobot</div>
+      </div>
+      <div class="flow" style="margin-top:6px">
+        <div class="node f">Bandingkan Total</div>
+        <div class="arrow f">➜</div>
+        <div class="node diamond f">Total<br>terkecil?</div>
+        <div class="arrow f">➜</div>
+        <div class="branchLabel f">YA ➜</div>
+        <div class="node f">Pilih Rute Itu</div>
+        <div class="arrow f">➜</div>
+        <div class="node oval f">Selesai</div>
+      </div>
+      <div class="flow" style="margin-top:6px">
+        <span class="branchLabel f">TIDAK ➜ kembali membandingkan jalur lain</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 13. KODE LENGKAP ============ -->
+  <section class="slide">
+    <!-- GURU: Tampilkan kode, tidak perlu dihafal. Fokus pada logika penjumlahan bobot. -->
+    <div class="shead">
+      <div>
+        <div class="eyebrow">Contoh Program</div>
+        <h2 class="title">Kode Sederhana <span class="grad">Hitung Rute</span></h2>
+      </div>
+      <span class="chip time f">⏱ 7 menit</span>
+    </div>
+    <div class="body">
+      <div class="code sm f"><span class="c"># Graf berbobot: {simpul: [(tetangga, bobot)]}</span>
+peta = {
+  <span class="s">"A"</span>: [(<span class="s">"B"</span>, 5), (<span class="s">"C"</span>, 8)],
+  <span class="s">"B"</span>: [(<span class="s">"C"</span>, 3), (<span class="s">"D"</span>, 6)],
+  <span class="s">"C"</span>: [(<span class="s">"D"</span>, 4), (<span class="s">"E"</span>, 7)],
+  <span class="s">"D"</span>: [(<span class="s">"E"</span>, 2), (<span class="s">"F"</span>, 5)],
+  <span class="s">"E"</span>: [(<span class="s">"F"</span>, 4)],
+}
+
+<span class="k">def</span> total(rute):
+    bobot = 0
+    <span class="k">for</span> i <span class="k">in</span> range(len(rute) - 1):
+        <span class="k">for</span> t, b <span class="k">in</span> peta[rute[i]]:
+            <span class="k">if</span> t == rute[i + 1]:
+                bobot += b
+    <span class="k">return</span> bobot
+
+print(total([<span class="s">"A"</span>,<span class="s">"B"</span>,<span class="s">"D"</span>,<span class="s">"F"</span>]))        <span class="c"># 16</span>
+print(total([<span class="s">"A"</span>,<span class="s">"B"</span>,<span class="s">"C"</span>,<span class="s">"D"</span>,<span class="s">"F"</span>]))  <span class="c"># 17</span></div>
+      <p class="lead f">Kode hanya <span class="hl">menjumlahkan</span> — sama seperti cara kita menghitung di kertas.</p>
+    </div>
+  </section>
+
+  <!-- ============ 14. KESALAHAN UMUM ============ -->
+  <section class="slide">
+    <!-- GURU: Minta murid memeriksa hasil LKPD mereka, apakah melakukan kesalahan ini. -->
+    <div class="shead">
+      <div>
+        <div class="eyebrow">Hati-hati</div>
+        <h2 class="title">Kesalahan <span class="grad">Umum</span></h2>
+      </div>
+      <span class="chip time f">⏱ 5 menit</span>
+    </div>
+    <div class="body">
+      <div class="grid g2">
+        <div class="card pink f">
+          <span class="ico">❌</span>
+          <h3>Sering Salah</h3>
+          <p>• Menjumlahkan simpul, bukan sisi<br>
+             • Lupa satu sisi saat menjumlah<br>
+             • Menganggap jarak = waktu<br>
+             • Memilih tanpa menghitung</p>
+        </div>
+        <div class="card f">
+          <span class="ico">✅</span>
+          <h3>Cara Benar</h3>
+          <p>• Jumlahkan bobot setiap sisi<br>
+             • Tulis perhitungan langkah demi langkah<br>
+             • Bandingkan minimal dua rute<br>
+             • Sertakan alasan dan bukti data</p>
+        </div>
+      </div>
+      <p class="lead f">Selalu tulis <span class="hl2">perhitungannya</span>, bukan hanya jawaban akhirnya.</p>
+    </div>
+  </section>
+
+  <!-- ============ 15. ANALOGI ============ -->
+  <section class="slide">
+    <!-- GURU: Gunakan analogi jajanan kantin supaya murid mudah membayangkan bobot biaya. -->
+    <div class="shead">
+      <div>
+        <div class="eyebrow">Analogi Tambahan</div>
+        <h2 class="title">Seperti Memilih <span class="grad">Jalan ke Kantin</span></h2>
+      </div>
+      <span class="chip time f">⏱ 4 menit</span>
+    </div>
+    <div class="body">
+      <p class="lead f">Ada tiga jalan menuju kantin: lewat koridor (2 menit), lewat lapangan (4 menit), lewat tangga belakang (3 menit).</p>
+      <div class="code f">Rute A: koridor       = <span class="k">2 menit</span>  ← paling cepat
+Rute B: lapangan      = 4 menit
+Rute C: tangga belakang = 3 menit
+
+Jika lapangan sedang ramai (+5 menit):
+Rute B menjadi 9 menit → <span class="k">bukan pilihan terbaik lagi</span></div>
+      <div class="grid g2" style="margin-top:4px">
+        <div class="card blue f"><h3>Bobot berubah</h3><p>Ketika satu sisi berubah, rute terbaik bisa berpindah.</p></div>
+        <div class="card gold f"><h3>Hitung ulang</h3><p>Selalu perbarui perhitungan jika kondisi berubah.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 16. AKTIVITAS KELOMPOK ============ -->
+  <section class="slide">
+    <!-- GURU: Bagi kelompok 4 orang. Setiap kelompok memilih satu misi. Kelompok dasar: 4 simpul. Kelompok mahir: 6 simpul. -->
+    <div class="shead">
+      <div>
+        <div class="eyebrow">Aktivitas Kelompok</div>
+        <h2 class="title">Misi <span class="grad">Kurir Muda</span></h2>
+      </div>
+      <span class="chip time f">⏱ 10 menit</span>
+    </div>
+    <div class="body">
+      <div class="grid g4">
+        <div class="card f"><span class="ico">🛵</span><h3>Misi Cepat</h3><p>Cari rute paling cepat dari A ke F.</p></div>
+        <div class="card gold f"><span class="ico">💵</span><h3>Misi Hemat</h3><p>Cari rute paling murah dari A ke F.</p></div>
+        <div class="card blue f"><span class="ico">⏱️</span><h3>Misi Tenggat</h3><p>Maksimal 17 menit, biaya terkecil.</p></div>
+        <div class="card pink f"><span class="ico">🚧</span><h3>Misi Macet</h3><p>Jalan B–D menjadi 15 menit. Rute terbaik?</p></div>
+      </div>
+      <div class="f chips">
+        <span class="chip">👥 4 orang per kelompok</span>
+        <span class="chip blue">📝 1 LKPD per kelompok</span>
+        <span class="chip orange">⏳ 15 menit kerja</span>
+      </div>
+      <p class="lead f">Tulis hasil di <span class="hl3">spreadsheet</span> atau papan tulis.</p>
+    </div>
+  </section>
+
+  <!-- ============ 17. LANGKAH KERJA ============ -->
+  <section class="slide">
+    <!-- GURU: Pastikan setiap kelompok punya pencatat waktu dan penyaji. -->
+    <div class="shead">
+      <div>
+        <div class="eyebrow">Petunjuk Kerja</div>
+        <h2 class="title">Langkah <span class="grad">Kerja Kelompok</span></h2>
+      </div>
+      <span class="chip time f">⏱ 4 menit</span>
+    </div>
+    <div class="body">
+      <ol class="steps">
+        <li class="f">Tulis simpul awal dan simpul akhir.</li>
+        <li class="f">Daftar minimal tiga rute berbeda.</li>
+        <li class="f">Hitung total waktu dan total biaya.</li>
+        <li class="f">Pilih rute terbaik sesuai kriteria misi.</li>
+        <li class="f">Tulis alasan 3–5 kalimat dengan bukti.</li>
+        <li class="f">Presentasikan hasil kelompok di depan kelas.</li>
+      </ol>
+      <div class="f chips">
+        <span class="chip">👤 Pembaca peta</span>
+        <span class="chip blue">🧮 Penghitung</span>
+        <span class="chip orange">✍️ Pencatat</span>
+        <span class="chip pink">🗣️ Penyaji</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 18. KUIS KILAT ============ -->
+  <section class="slide">
+    <!-- GURU: Kuis lisan cepat. Apresiasi setiap jawaban, tidak perlu nilai. -->
+    <div class="shead">
+      <div>
+        <div class="eyebrow">Cek Pemahaman</div>
+        <h2 class="title">Kuis <span class="grad">Kilat</span></h2>
+      </div>
+      <span class="chip time f">⏱ 5 menit</span>
+    </div>
+    <div class="body">
+      <div class="grid g3">
+        <div class="card f"><span class="ico">1️⃣</span><h3>A–B = 5, B–D = 6</h3><p>Berapa total waktu rute A → B → D?</p></div>
+        <div class="card blue f"><span class="ico">2️⃣</span><h3>Dua rute</h3><p>Rute X = 16 menit, Rute Y = 17 menit. Mana lebih cepat?</p></div>
+        <div class="card gold f"><span class="ico">3️⃣</span><h3>B–D macet</h3><p>Jika B–D jadi 15 menit, apakah rute lama masih terbaik?</p></div>
+      </div>
+      <div class="code f"><span class="c"># Jawaban 1</span>
+A–B = 5 menit, B–D = 6 menit
+Total = 5 + 6 = <span class="k">11 menit</span></div>
+      <p class="lead f">Jawaban 2: <span class="hl">Rute X</span>. Jawaban 3: <span class="hl2">Tidak</span>, rute terbaik berubah.</p>
+    </div>
+  </section>
+
+  <!-- ============ 19. REFLEKSI ============ -->
+  <section class="slide">
+    <!-- GURU: Bagikan sticky note. Murid menulis lalu menempel di papan refleksi. -->
+    <div class="shead">
+      <div>
+        <div class="eyebrow">Aktivitas Reflektif</div>
+        <h2 class="title">Exit <span class="grad">Ticket</span></h2>
+      </div>
+      <span class="chip time f">⏱ 5 menit</span>
+    </div>
+    <div class="body">
+      <div class="timeline">
+        <div class="tl f"><b>1. Apa yang dipelajari?</b><span>Tulis satu hal baru hari ini.</span></div>
+        <div class="tl f"><b>2. Bagian tersulit?</b><span>Tulis bagian yang masih membingungkan.</span></div>
+        <div class="tl f"><b>3. Kerja sama?</b><span>Bagaimana kamu membantu kelompok?</span></div>
+        <div class="tl f"><b>4. Penerapan?</b><span>Satu contoh graf berbobot di hidupmu.</span></div>
+      </div>
+      <div class="grid g2" style="margin-top:16px">
+        <div class="card blue f"><h3>Refleksi diri</h3><p>Saya belajar… bagian sulit… rencana perbaikan saya…</p></div>
+        <div class="card gold f"><h3>Kaitkan kehidupan</h3><p>Rute rumah–sekolah, ojek online, atau pengiriman paket.</p></div>
+      </div>
+      <p class="lead f">Tulis di kertas kecil, tempel di papan refleksi sebelum keluar kelas.</p>
+    </div>
+  </section>
+
+  <!-- ============ 20. RUBRIK ============ -->
+  <section class="slide">
+    <!-- GURU: Bacakan rubrik agar murid tahu kriteria penilaian sejak awal. -->
+    <div class="shead">
+      <div>
+        <div class="eyebrow">Penilaian</div>
+        <h2 class="title">Rubrik <span class="grad">Penilaian</span></h2>
+      </div>
+      <span class="chip time f">⏱ 4 menit</span>
+    </div>
+    <div class="body">
+      <table class="f">
+        <thead><tr><th>Aspek</th><th>4 — Sangat Baik</th><th>3 — Baik</th><th>2 — Cukup</th><th>1 — Perlu Bimbingan</th></tr></thead>
+        <tbody>
+          <tr><td>Pengetahuan</td><td>Semua bobot benar</td><td>Sedikit salah</td><td>Banyak salah</td><td>Belum mampu</td></tr>
+          <tr><td>Keterampilan</td><td>Rapi &amp; tepat</td><td>Cukup rapi</td><td>Perlu bimbingan</td><td>Belum selesai</td></tr>
+          <tr><td>Kolaborasi</td><td>Aktif &amp; menghargai</td><td>Aktif</td><td>Kurang aktif</td><td>Tidak aktif</td></tr>
+          <tr><td>Penalaran Kritis</td><td>Logis + bukti data</td><td>Alasan jelas</td><td>Alasan singkat</td><td>Tanpa alasan</td></tr>
+          <tr><td>Refleksi</td><td>Mendalam + rencana</td><td>Cukup</td><td>Dangkal</td><td>Tidak mengisi</td></tr>
+        </tbody>
+      </table>
+      <p class="lead f">Nilai akhir = rata-rata lima aspek. <span class="hl">Bukti perhitungan</span> selalu dinilai.</p>
+    </div>
+  </section>
+
+  <!-- ============ 21. RANGKUMAN ============ -->
+  <section class="slide">
+    <!-- GURU: Minta murid menutup buku, lalu menyebut satu poin rangkuman secara acak. -->
+    <div class="shead">
+      <div>
+        <div class="eyebrow">Rangkuman</div>
+        <h2 class="title">Yang Perlu <span class="grad">Diingat</span></h2>
+      </div>
+      <span class="chip time f">⏱ 4 menit</span>
+    </div>
+    <div class="body">
+      <ul class="bullets gold">
+        <li class="f">Graf = simpul + sisi penghubung.</li>
+        <li class="f">Graf berbobot = setiap sisi punya nilai.</li>
+        <li class="f">Rute = urutan simpul dari awal ke akhir.</li>
+        <li class="f">Rute terpendek = total bobot paling kecil.</li>
+        <li class="f">Bobot bisa waktu, jarak, biaya, atau keamanan.</li>
+        <li class="f">Selalu bandingkan dan jelaskan dengan bukti.</li>
+      </ul>
+      <div class="f chips" style="margin-top:12px">
+        <span class="chip">🔵 Simpul</span><span class="chip blue">➖ Sisi</span><span class="chip orange">🔢 Bobot</span><span class="chip pink">🧭 Rute</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 22. TINDAK LANJUT ============ -->
+  <section class="slide">
+    <!-- GURU: Sampaikan tugas rumah dan gambaran pertemuan berikutnya. -->
+    <div class="shead">
+      <div>
+        <div class="eyebrow">Tindak Lanjut</div>
+        <h2 class="title">Setelah <span class="grad">Pelajaran Ini</span></h2>
+      </div>
+      <span class="chip time f">⏱ 3 menit</span>
+    </div>
+    <div class="body">
+      <div class="grid g2">
+        <div class="card gold f">
+          <span class="ico">🏠</span>
+          <h3>Tugas Rumah</h3>
+          <p>Catat rute rumah–sekolah, beri bobot waktu tiap sisi, lalu cari satu rute alternatif dan bandingkan totalnya.</p>
+        </div>
+        <div class="card blue f">
+          <span class="ico">➡️</span>
+          <h3>Pertemuan Berikutnya</h3>
+          <p>Membuat graf berbobot sendiri di spreadsheet dan mengenal algoritma pencarian rute yang lebih besar.</p>
+        </div>
+      </div>
+      <div class="timeline" style="margin-top:6px">
+        <div class="tl f"><b>Hari ini</b><span>Membaca peta berbobot dan memilih rute.</span></div>
+        <div class="tl f"><b>Besok</b><span>Membuat tabel bobot di spreadsheet.</span></div>
+        <div class="tl f"><b>Pertemuan depan</b><span>Algoritma pencarian rute.</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 23. PENUTUP ============ -->
+  <section class="slide">
+    <!-- GURU: Tutup dengan doa dan salam. Apresiasi kelompok terbaik. -->
+    <div class="body" style="align-items:center;justify-content:center;text-align:center">
+      <div class="eyebrow f" style="justify-content:center">Penutup</div>
+      <h1 class="title grad f" style="font-size:64px">Terima Kasih</h1>
+      <p class="lead f" style="max-width:840px;margin-top:12px">
+        “Setiap jalan punya bobotnya sendiri — pilihlah dengan hitungan,<br>bukan dengan tebakan.”
+      </p>
+      <div class="f" style="margin-top:22px;display:flex;gap:12px;flex-wrap:wrap;justify-content:center">
+        <span class="badge">👥 Tim MGMP Informatika</span>
+        <span class="badge">🏫 SMP Negeri 19 Kota Bekasi</span>
+        <span class="badge">💻 Informatika · Kelas IX / Fase D</span>
+      </div>
+      <div class="f chips" style="margin-top:18px;justify-content:center">
+        <span class="chip">🧠 Berpikir Komputasional</span>
+        <span class="chip blue">🤝 PBL + Simulasi</span>
+        <span class="chip orange">🌱 Pembelajaran Mendalam</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ HUD ============ -->
+  <div id="hud">
+    <div class="hudleft">
+      <span id="counter">1 / 23</span>
+      <span class="hudtitle">Graf Berbobot &amp; Rute Terpendek · Informatika IX</span>
+    </div>
+    <div class="hudbtns">
+      <button class="btn" id="btnPrev" title="Sebelumnya (←)">◀</button>
+      <button class="btn" id="btnNext" title="Lanjut (→)">▶</button>
+      <button class="btn" id="btnFs" title="Layar penuh (F)">⛶</button>
+    </div>
+  </div>
+  <div id="bar"><i></i></div>
+  <div id="hint">Klik / tekan → untuk lanjut</div>
+
+</div>
+
+<script>
+(function(){
+  const stage   = document.getElementById('stage');
+  const slides  = Array.prototype.slice.call(document.querySelectorAll('.slide'));
+  const counter = document.getElementById('counter');
+  const barFill = document.querySelector('#bar > i');
+  const hint    = document.getElementById('hint');
+  let cur = 0;
+  let busy = false;
+
+  /* ---- Skala kanvas 16:9 ---- */
+  function fitStage(){
+    const s = Math.min(window.innerWidth / 1280, window.innerHeight / 720);
+    stage.style.transform = 'scale(' + s + ')';
+  }
+  window.addEventListener('resize', fitStage);
+  fitStage();
+
+  /* ---- HUD ---- */
+  function updateHUD(){
+    counter.textContent = (cur + 1) + ' / ' + slides.length;
+    barFill.style.width = (((cur + 1) / slides.length) * 100) + '%';
+  }
+
+  function hideHint(){ hint.classList.add('gone'); }
+
+  /* ---- Pindah slide ---- */
+  function goTo(n, dir){
+    if (n < 0 || n >= slides.length || n === cur || busy) return;
+    busy = true;
+    const old = slides[cur];
+    old.classList.remove('active');
+    cur = n;
+    const s = slides[cur];
+    s.style.setProperty('--d', dir || 1);
+    // sembunyikan semua elemen bertahap -> hanya judul yang tampil
+    s.querySelectorAll('.f.show').forEach(function(el){ el.classList.remove('show'); });
+    void s.offsetWidth;
+    s.classList.add('active');
+    updateHUD();
+    setTimeout(function(){ busy = false; }, 380);
+  }
+
+  /* ---- Reveal bertahap ---- */
+  function nextStep(){
+    const pending = slides[cur].querySelectorAll('.f:not(.show)');
+    if (pending.length){
+      pending[0].classList.add('show');
+      hideHint();
+      return;
+    }
+    if (cur < slides.length - 1) goTo(cur + 1, 1);
+  }
+
+  function prevStep(){
+    if (cur > 0) goTo(cur - 1, -1);
+  }
+
+  /* ---- Klik di mana saja ---- */
+  stage.addEventListener('click', function(e){
+    if (e.target.closest('#hud')) return;
+    nextStep();
+  });
+
+  document.getElementById('btnNext').addEventListener('click', function(e){ e.stopPropagation(); nextStep(); });
+  document.getElementById('btnPrev').addEventListener('click', function(e){ e.stopPropagation(); prevStep(); });
+  document.getElementById('btnFs').addEventListener('click', function(e){ e.stopPropagation(); toggleFs(); });
+
+  /* ---- Fullscreen ---- */
+  function toggleFs(){
+    if (!document.fullscreenElement){
+      const el = document.documentElement;
+      if (el.requestFullscreen) el.requestFullscreen();
+      else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+    } else {
+      if (document.exitFullscreen) document.exitFullscreen();
+      else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+    }
+  }
+  document.addEventListener('fullscreenchange', fitStage);
+  document.addEventListener('webkitfullscreenchange', fitStage);
+
+  /* ---- Keyboard ---- */
+  window.addEventListener('keydown', function(e){
+    const k = e.key;
+    if (k === 'ArrowRight' || k === 'ArrowDown' || k === ' ' || k === 'PageDown' || k === 'Enter'){
+      e.preventDefault(); nextStep();
+    } else if (k === 'ArrowLeft' || k === 'ArrowUp' || k === 'PageUp'){
+      e.preventDefault(); prevStep();
+    } else if (k === 'Home'){
+      e.preventDefault(); goTo(0, -1);
+    } else if (k === 'End'){
+      e.preventDefault(); goTo(slides.length - 1, 1);
+    } else if (k === 'f' || k === 'F'){
+      e.preventDefault(); toggleFs();
+    }
+  });
+
+  updateHUD();
+})();
+</script>
+</body>
+</html>
